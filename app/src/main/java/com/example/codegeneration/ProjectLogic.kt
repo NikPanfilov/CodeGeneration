@@ -12,27 +12,22 @@ import java.lang.Exception
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-private const val BURST_SOUND = "bubble_burst"
-private const val RAW_DEFTYPE = "raw"
-
 class ProjectLogic(
     private val bubbleList: MutableList<Bubble>,
     private val height: Int,
-    private val radius: Int,
-    private val context: Context,
-    private val binding: ActivityMainBinding
+    private val radius: Int
 ) {
 
-    fun move(): Boolean {
+    fun move(list:MutableList<Bubble>): MutableList<Bubble> {
         if (bubbleList.isNotEmpty()) {
 
             for (bubble in bubbleList) {
-                bubble.image.y += bubble.direction
+                bubble.image.y += bubble.direction *5
             }
 
             fixCollision()
         }
-        return true
+        return bubbleList
     }
 
     private fun changeDirection(bubble: Bubble) {
@@ -73,22 +68,12 @@ class ProjectLogic(
 
         for (i in collisions.size - 1 downTo 0) {
             if (collisions[i] > 1) {
-                playSound(BURST_SOUND)
-                binding.root.removeView(bubbleList[i].image)
-                bubbleList.removeAt(i)
+                bubbleList[i].isDelete=true
             }
         }
     }
 
     fun distance(x1: Float, y1: Float, x2: Float, y2: Float): Double =
         sqrt((x1 - x2).toDouble().pow(2.0) + (y1 - y2).toDouble().pow(2.0))
-
-    fun playSound(fileName: String) {
-        val mp = MediaPlayer.create(
-            context,
-            context.resources.getIdentifier(fileName, RAW_DEFTYPE, context.packageName)
-        )
-        mp.start()
-    }
 }
 
