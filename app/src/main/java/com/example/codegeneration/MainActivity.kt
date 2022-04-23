@@ -23,7 +23,8 @@ const val BACKGROUND_ARTORIA = "artoria"
 const val BACKGROUND_MORDRED = "mordred"
 const val ROUND_ARTORIA = "artoria_round"
 const val ROUND_MORDRED = "mordred_round"
-const val DELETED_BUBBLE = "magic_circle"
+const val DELETED_BUBBLE_ARTORIA = "magic_circle_blue"
+const val DELETED_BUBBLE_MORDRED = "magic_circle_gray"
 private const val BURST_SOUND = "bubble_burst"
 private const val RAW_DEFTYPE = "raw"
 const val MAX_BUBBLE_ON_LINE = 6
@@ -37,13 +38,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var deleteBubbleList: MutableList<ImageView>
     private lateinit var projectLogic: ProjectLogic
     private lateinit var lastVector: Vector
+    private lateinit var lParams: ConstraintLayout.LayoutParams
+    private lateinit var bounds: Rect
+    private var deletedImage= DELETED_BUBBLE_ARTORIA
     private var backgroundName = BACKGROUND_ARTORIA
     private var roundName = ROUND_ARTORIA
-    private lateinit var lParams: ConstraintLayout.LayoutParams
     private var idCounter = 1
-    private lateinit var bounds: Rect
 
-    @SuppressLint("ClickableViewAccessibility")
+    @SuppressLint("ClickableViewAccessibility", "ResourceAsColor")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -64,6 +66,9 @@ class MainActivity : AppCompatActivity() {
         binding.backgroundImage.z = 0F
 
         soundAlert()
+
+        binding.buttonClear.setOnClickListener{changeBackground(true)}
+        binding.buttonClear.background.setTint(R.color.blue)
         move()
     }
 
@@ -112,8 +117,7 @@ class MainActivity : AppCompatActivity() {
                     if (!canAddBubble(event, lParams)) {
                         deleteBubbleList.add(view as ImageView)
                         view.z = 1F
-                        view.setImage(DELETED_BUBBLE)
-                        playSound(BURST_SOUND,view, DELETED_BUBBLE)
+                        playSound(BURST_SOUND,view, deletedImage)
                         view.setOnTouchListener(null)
                     } else {
                         bubbleList.add(Bubble(view as ImageView, lastVector))
@@ -123,7 +127,7 @@ class MainActivity : AppCompatActivity() {
             })
             newBubble.setOnTouchListener(listener)
 
-            if (bubbleList.size+deleteBubbleList.size % BUBBLES_TO_CHANGE_SCREEN == 0) {
+            if ((bubbleList.size+deleteBubbleList.size) % BUBBLES_TO_CHANGE_SCREEN == 0) {
                 changeBackground()
             }
         }
@@ -137,12 +141,17 @@ class MainActivity : AppCompatActivity() {
         return Vector(x, y)
     }
 
-    private fun changeBackground() {
-        if (backgroundName == BACKGROUND_ARTORIA) {
+    @SuppressLint("ResourceAsColor", "UseCompatLoadingForColorStateLists")
+    private fun changeBackground(force: Boolean =false) {
+        if (backgroundName == BACKGROUND_ARTORIA && !force) {
+            binding.buttonClear.background.setTint(R.color.gray)
+            deletedImage=DELETED_BUBBLE_MORDRED
             backgroundName = BACKGROUND_MORDRED
             roundName = ROUND_MORDRED
             binding.backgroundImage.setImage(backgroundName)
         } else {
+            binding.buttonClear.background.setTint(R.color.blue)
+            deletedImage= DELETED_BUBBLE_ARTORIA
             backgroundName = BACKGROUND_ARTORIA
             roundName = ROUND_ARTORIA
             playSound(EXCALIBUR_SOUND,binding.backgroundImage,backgroundName)
@@ -202,7 +211,7 @@ class MainActivity : AppCompatActivity() {
     ): Boolean {
         val radius = lParams.width / 2
 
-        if (event.rawY <= bounds.top || event.rawY + 2 * lParams.height >= bounds.bottom
+        if (event.rawY <= bounds.top || event.rawY + lParams.height >= bounds.bottom
             || event.rawX <= bounds.left || event.rawX >= bounds.right
         ) {
             return false
@@ -237,7 +246,7 @@ class MainActivity : AppCompatActivity() {
     private fun deleteBurst() {
         for (i in bubbleList.size - 1 downTo 0) {
             if (bubbleList[i].isDelete) {
-                playSound(BURST_SOUND,bubbleList[i].image, DELETED_BUBBLE)
+                playSound(BURST_SOUND,bubbleList[i].image, deletedImage)
                 bubbleList[i].image.setOnTouchListener(null)
                 bubbleList[i].image.z = 1F
                 deleteBubbleList.add(bubbleList[i].image)

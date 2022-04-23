@@ -31,7 +31,7 @@ class ProjectLogic(
 
     private fun fixEdgeCollision(collisions: MutableList<Int>) {
         for (i in 0 until bubbleList.size) {
-            if (bubbleList[i].image.y + 2 * radius >= bounds.bottom || bubbleList[i].image.y <= bounds.top) {
+            if (bubbleList[i].image.y + 3 * radius >= bounds.bottom || bubbleList[i].image.y <= bounds.top) {
                 bubbleList[i].vector.y *= -1
                 collisions[i]++
             }
