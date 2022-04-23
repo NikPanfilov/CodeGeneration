@@ -3,18 +3,16 @@ package com.example.codegeneration
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.media.Image
+import android.graphics.Rect
 import android.media.MediaPlayer
-import android.media.MediaPlayer.OnCompletionListener
-import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.window.layout.WindowMetricsCalculator
 import com.example.codegeneration.databinding.ActivityMainBinding
 import kotlin.random.Random
 
@@ -29,7 +27,8 @@ const val DELETED_BUBBLE = "magic_circle"
 private const val BURST_SOUND = "bubble_burst"
 private const val RAW_DEFTYPE = "raw"
 const val MAX_BUBBLE_ON_LINE = 6
-const val BUBBLES_TO_CHANGE_SCREEN = 10
+const val BUBBLES_TO_CHANGE_SCREEN = 20
+const val MAX_SPEED = 5.0
 
 class MainActivity : AppCompatActivity() {
 
@@ -37,27 +36,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bubbleList: MutableList<Bubble>
     private lateinit var deleteBubbleList: MutableList<ImageView>
     private lateinit var projectLogic: ProjectLogic
-    private var screenHeight = 0
+    private lateinit var lastVector: Vector
     private var backgroundName = BACKGROUND_ARTORIA
     private var roundName = ROUND_ARTORIA
     private lateinit var lParams: ConstraintLayout.LayoutParams
+    private var idCounter = 1
+    private lateinit var bounds: Rect
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        val imageWidth: Int
         bubbleList = mutableListOf()
-        deleteBubbleList= mutableListOf()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            imageWidth = windowManager.currentWindowMetrics.bounds.width() / MAX_BUBBLE_ON_LINE
-            screenHeight = windowManager.currentWindowMetrics.bounds.height()
-        } else {
-            imageWidth = windowManager.defaultDisplay.width / MAX_BUBBLE_ON_LINE
-            screenHeight = windowManager.defaultDisplay.height
-        }
-        projectLogic = ProjectLogic(bubbleList, screenHeight, imageWidth / 2)
+        deleteBubbleList = mutableListOf()
+        bounds = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(this).bounds
+        val imageWidth = bounds.right / MAX_BUBBLE_ON_LINE
+        projectLogic = ProjectLogic(bubbleList, bounds, imageWidth / 2)
 
         lParams = ConstraintLayout.LayoutParams(imageWidth, imageWidth)
         binding.backgroundImage.setOnTouchListener { _, motionEvent ->
@@ -66,9 +61,13 @@ class MainActivity : AppCompatActivity() {
                 lParams
             )
         }
-        binding.backgroundImage.z=0F
+        binding.backgroundImage.z = 0F
 
+        soundAlert()
+        move()
+    }
 
+    private fun soundAlert() {
         val alertDialog = AlertDialog.Builder(this)
         alertDialog.setTitle(getString(R.string.warning_title))
         alertDialog.setMessage(getString(R.string.warning_text))
@@ -76,29 +75,30 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.OK)
         ) { _, _ -> }
         alertDialog.show()
-        move()
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun createBubble(event: MotionEvent, lParams: ConstraintLayout.LayoutParams): Boolean {
 
-        if (canAddBubble(event,  lParams)) {
-            val x = event.x
-            val y = event.y
+        if (canAddBubble(event, lParams)) {
+            val x = event.rawX
+            val y = event.rawY
             val newBubble = ImageView(this)
             newBubble.setImage(roundName)
             newBubble.x = x - lParams.width / 2
             newBubble.y = y - lParams.height / 2
-            newBubble.id= (0..100000000).random()
+            newBubble.id = idCounter
+            idCounter++
             binding.root.addView(newBubble, lParams)
-            bubbleList.add(Bubble(newBubble, 1))
-            newBubble.z=2F
+            bubbleList.add(Bubble(newBubble, createVector()))
+            newBubble.z = 2F
 
 
             val listener = View.OnTouchListener(function = { view, event ->
-                if(event.action==MotionEvent.ACTION_DOWN){
-                    for(i in 0 until bubbleList.size){
-                        if(bubbleList[i].image.id==view.id){
+                if (event.action == MotionEvent.ACTION_DOWN) {
+                    for (i in 0 until bubbleList.size) {
+                        if (bubbleList[i].image.id == view.id) {
+                            lastVector = bubbleList[i].vector
                             bubbleList.removeAt(i)
                             break
                         }
@@ -108,39 +108,44 @@ class MainActivity : AppCompatActivity() {
                     view.x = event.rawX - lParams.width
                     view.y = event.rawY - lParams.height
                 }
-                if(event.action==MotionEvent.ACTION_UP){
-                    if(!canAddBubble(event, lParams)){
+                if (event.action == MotionEvent.ACTION_UP) {
+                    if (!canAddBubble(event, lParams)) {
                         deleteBubbleList.add(view as ImageView)
-                        view.z= 1F
-                        (view as ImageView).setImage(DELETED_BUBBLE)
-                        playSound(BURST_SOUND)
+                        view.z = 1F
+                        view.setImage(DELETED_BUBBLE)
+                        playSound(BURST_SOUND,view, DELETED_BUBBLE)
                         view.setOnTouchListener(null)
-                    }else{
-                        bubbleList.add(Bubble(view as ImageView,1))
+                    } else {
+                        bubbleList.add(Bubble(view as ImageView, lastVector))
                     }
                 }
                 true
             })
             newBubble.setOnTouchListener(listener)
 
-            if (bubbleList.size % BUBBLES_TO_CHANGE_SCREEN == 0) {
+            if (bubbleList.size+deleteBubbleList.size % BUBBLES_TO_CHANGE_SCREEN == 0) {
                 changeBackground()
-                return false
             }
         }
 
         return false
     }
 
+    private fun createVector(): Vector {
+        val x = Random.nextDouble(-MAX_SPEED, MAX_SPEED)
+        val y = Random.nextDouble(-MAX_SPEED, MAX_SPEED)
+        return Vector(x, y)
+    }
+
     private fun changeBackground() {
         if (backgroundName == BACKGROUND_ARTORIA) {
             backgroundName = BACKGROUND_MORDRED
-            binding.backgroundImage.setImage(backgroundName)
             roundName = ROUND_MORDRED
+            binding.backgroundImage.setImage(backgroundName)
         } else {
             backgroundName = BACKGROUND_ARTORIA
-            binding.backgroundImage.setImage(backgroundName)
             roundName = ROUND_ARTORIA
+            playSound(EXCALIBUR_SOUND,binding.backgroundImage,backgroundName)
             clearScreen()
         }
     }
@@ -156,15 +161,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    fun playSound(fileName: String) {
+    fun playSound(fileName: String, imageView: ImageView,image:String) {
         val mp = MediaPlayer.create(
             this,
             resources.getIdentifier(fileName, RAW_DEFTYPE, packageName)
         )
 
-        binding.backgroundImage.setOnTouchListener(null)
+        if (fileName == EXCALIBUR_SOUND)
+            binding.backgroundImage.setOnTouchListener(null)
+        else
+            imageView.setImage(image)
 
         mp.setOnCompletionListener {
+            imageView.setImage(image)
             binding.backgroundImage.setOnTouchListener { _, motionEvent ->
                 createBubble(
                     motionEvent,
@@ -173,19 +182,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+
         mp.start()
     }
 
     private fun clearScreen() {
-        playSound(EXCALIBUR_SOUND)
-
-        val time = (7000 / bubbleList.size).toLong()
         for (bubble in bubbleList) {
             binding.root.removeView(bubble.image)
-            binding.root.invalidate()
-            Thread.sleep(time)
         }
-        for(bubble in deleteBubbleList){
+        for (bubble in deleteBubbleList) {
             binding.root.removeView(bubble)
         }
         bubbleList.clear()
@@ -195,13 +200,15 @@ class MainActivity : AppCompatActivity() {
         event: MotionEvent,
         lParams: ConstraintLayout.LayoutParams
     ): Boolean {
-        val radius=lParams.width/2
+        val radius = lParams.width / 2
 
-        if (event.rawY - radius <= 0 || event.rawY + 2 * lParams.height >= screenHeight) {
+        if (event.rawY <= bounds.top || event.rawY + 2 * lParams.height >= bounds.bottom
+            || event.rawX <= bounds.left || event.rawX >= bounds.right
+        ) {
             return false
         }
         for (bubble in bubbleList) {
-            if (projectLogic.distance(
+            if (ProjectLogic.distance(
                     bubble.image.x + radius,
                     bubble.image.y + radius,
                     event.rawX,
@@ -219,19 +226,20 @@ class MainActivity : AppCompatActivity() {
             override fun onTick(p0: Long) {}
 
             override fun onFinish() {
-                projectLogic.move(bubbleList)
+                projectLogic.move()
                 deleteBurst()
                 move()
             }
         }.start()
     }
-    private fun deleteBurst(){
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun deleteBurst() {
         for (i in bubbleList.size - 1 downTo 0) {
             if (bubbleList[i].isDelete) {
-                bubbleList[i].image.setImage(DELETED_BUBBLE)
-                playSound(BURST_SOUND)
+                playSound(BURST_SOUND,bubbleList[i].image, DELETED_BUBBLE)
                 bubbleList[i].image.setOnTouchListener(null)
-                bubbleList[i].image.z= -1F
+                bubbleList[i].image.z = 1F
                 deleteBubbleList.add(bubbleList[i].image)
                 bubbleList.removeAt(i)
             }
