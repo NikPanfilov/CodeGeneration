@@ -1,4 +1,4 @@
-package com.example.codegeneration
+package com.example.codegeneration.model
 
 import android.widget.ImageView
 

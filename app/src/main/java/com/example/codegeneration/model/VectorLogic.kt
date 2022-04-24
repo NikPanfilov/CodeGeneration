@@ -1,4 +1,4 @@
-package com.example.codegeneration
+package com.example.codegeneration.model
 
 
 import android.graphics.Rect
@@ -8,9 +8,9 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-const val VECTOR_LENGTH=2.0
+private const val VECTOR_LENGTH = 2.0
 
-class ProjectLogic(
+class VectorLogic(
     private val bubbleList: MutableList<Bubble>,
     private val bounds: Rect,
     private val radius: Int
@@ -35,7 +35,7 @@ class ProjectLogic(
                 bubbleList[i].vector.y *= -1
                 collisions[i]++
             }
-            if (bubbleList[i].image.x + 2 * radius >= bounds.right || bubbleList[i].image.x  <= bounds.left) {
+            if (bubbleList[i].image.x + 2 * radius >= bounds.right || bubbleList[i].image.x <= bounds.left) {
                 bubbleList[i].vector.x *= -1
                 collisions[i]++
             }
@@ -56,10 +56,9 @@ class ProjectLogic(
                         bubbleList[j].image.y
                     ) < 2 * radius
                 ) {
-                    if (bubbleList[i].image.y>bubbleList[j].image.y) {
+                    if (bubbleList[i].image.y > bubbleList[j].image.y) {
                         changeVectors(bubbleList[j], bubbleList[i])
-                    }else
-                    {
+                    } else {
                         changeVectors(bubbleList[i], bubbleList[j])
                     }
                     collisions[i]++
@@ -71,7 +70,7 @@ class ProjectLogic(
 
         for (i in collisions.size - 1 downTo 0) {
             if (collisions[i] > 1) {
-                Log.i("col",i.toString()+" "+collisions[i].toString())
+                Log.i("col", i.toString() + " " + collisions[i].toString())
                 bubbleList[i].isDelete = true
             }
         }
@@ -95,7 +94,7 @@ class ProjectLogic(
         component2 *= distance(center2, direction2)
         direction2.y = distance(center2, direction2) * sin(triangle.getAngle(1))
 
-        component1=component2.also { component2=component1 }
+        component1 = component2.also { component2 = component1 }
 
         triangle.point[2] = Vector(center1.x, center2.y)
 
@@ -111,10 +110,10 @@ class ProjectLogic(
 
     }
 
-    private fun normalize(vector: Vector){
-        val lengthInversion=VECTOR_LENGTH/sqrt(vector.x.pow(2)+vector.y.pow(2))
-        vector.x*=lengthInversion
-        vector.y*=lengthInversion
+    private fun normalize(vector: Vector) {
+        val lengthInversion = VECTOR_LENGTH / sqrt(vector.x.pow(2) + vector.y.pow(2))
+        vector.x *= lengthInversion
+        vector.y *= lengthInversion
     }
 
     companion object {
