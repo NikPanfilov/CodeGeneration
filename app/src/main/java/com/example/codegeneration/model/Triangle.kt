@@ -1,5 +1,6 @@
 package com.example.codegeneration.model
 
+import com.example.codegeneration.model.Vector.Companion.distance
 import kotlin.math.acos
 import kotlin.math.pow
 
@@ -8,9 +9,9 @@ class Triangle(var point: MutableList<Vector>) {
 
     private fun setSides() {
         side.clear()
-        side.add(VectorLogic.distance(point[0], point[1]))
-        side.add(VectorLogic.distance(point[1], point[2]))
-        side.add(VectorLogic.distance(point[2], point[0]))
+        side.add(distance(point[0], point[1]))
+        side.add(distance(point[1], point[2]))
+        side.add(distance(point[2], point[0]))
     }
 
     // Returns the angle from the vertex
